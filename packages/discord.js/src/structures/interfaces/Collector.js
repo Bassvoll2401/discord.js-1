@@ -1,10 +1,10 @@
 'use strict';
 
-const EventEmitter = require('node:events');
 const { setTimeout, clearTimeout } = require('node:timers');
 const { Collection } = require('@discordjs/collection');
-const { DiscordjsTypeError, ErrorCodes } = require('../../errors');
-const { flatten } = require('../../util/Util');
+const { AsyncEventEmitter } = require('@vladfrangu/async_event_emitter');
+const { DiscordjsTypeError, ErrorCodes } = require('../../errors/index.js');
+const { flatten } = require('../../util/Util.js');
 
 /**
  * Filter to be applied to the collector.
@@ -25,10 +25,10 @@ const { flatten } = require('../../util/Util');
 
 /**
  * Abstract class for defining a new Collector.
- * @extends {EventEmitter}
+ * @extends {AsyncEventEmitter}
  * @abstract
  */
-class Collector extends EventEmitter {
+class Collector extends AsyncEventEmitter {
   constructor(client, options = {}) {
     super();
 
@@ -81,7 +81,7 @@ class Collector extends EventEmitter {
 
     /**
      * The reason the collector ended
-     * @type {string|null}
+     * @type {?string}
      * @private
      */
     this._endReason = null;
@@ -95,6 +95,20 @@ class Collector extends EventEmitter {
 
     if (options.time) this._timeout = setTimeout(() => this.stop('time'), options.time).unref();
     if (options.idle) this._idletimeout = setTimeout(() => this.stop('idle'), options.idle).unref();
+
+    /**
+     * The timestamp at which this collector last collected an item
+     * @type {?number}
+     */
+    this.lastCollectedTimestamp = null;
+  }
+
+  /**
+   * The Date at which this collector last collected an item
+   * @type {?Date}
+   */
+  get lastCollectedAt() {
+    return this.lastCollectedTimestamp && new Date(this.lastCollectedTimestamp);
   }
 
   /**
@@ -118,6 +132,7 @@ class Collector extends EventEmitter {
          */
         this.emit('collect', ...args);
 
+        this.lastCollectedTimestamp = Date.now();
         if (this._idletimeout) {
           clearTimeout(this._idletimeout);
           this._idletimeout = setTimeout(() => this.stop('idle'), this.options.idle).unref();
@@ -317,4 +332,4 @@ class Collector extends EventEmitter {
   /* eslint-enable no-empty-function */
 }
 
-module.exports = Collector;
+exports.Collector = Collector;
